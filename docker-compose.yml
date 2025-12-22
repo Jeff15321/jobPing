@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jobscanner-db
+    environment:
+      POSTGRES_USER: jobscanner
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: jobscanner
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobscanner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: jobscanner-localstack
+    environment:
+      SERVICES: sqs,ses
+      DEBUG: 1
+      DATA_DIR: /tmp/localstack/data
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+
+  # Note: API will be run directly with 'go run' for easier development
+
+volumes:
+  postgres_data:
+  localstack_data:

@@ -1,0 +1,78 @@
+.job-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.job-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.job-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.job-title {
+  font-size: 1.25rem;
+  color: #333;
+  margin: 0;
+}
+
+.job-company {
+  font-size: 1rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.job-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.job-description {
+  color: #555;
+  line-height: 1.6;
+  flex-grow: 1;
+}
+
+.job-ai-analysis {
+  padding: 0.5rem;
+  background: #f0f4ff;
+  border-radius: 6px;
+}
+
+.ai-badge {
+  font-size: 0.85rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.job-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.apply-btn {
+  flex: 1;
+  background: #667eea;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.apply-btn:hover {
+  background: #5568d3;
+}
