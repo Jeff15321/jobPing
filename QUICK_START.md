@@ -1,4 +1,5 @@
-# Quick Start Guide - AI Job Scanner
+
+ Quick Start Guide - AI Job Scanner
 ## Get Running in 5 Minutes
 
 This is a summary of the exact steps to get the AI Job Scanner running from scratch.
@@ -38,7 +39,6 @@ copy .env backend\.env
 docker-compose up -d
 
 # Wait 10 seconds for PostgreSQL to initialize
-Start-Sleep -Seconds 10
 
 # Verify services are running
 docker-compose ps
