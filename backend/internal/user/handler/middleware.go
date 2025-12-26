@@ -1,4 +1,4 @@
-package middleware
+package handler
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/jobping/backend/internal/shared"
 )
 
 type contextKey string
@@ -31,25 +30,23 @@ func (a *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			shared.WriteError(w, shared.ErrUnauthorized)
+			http.Error(w, `{"code":401,"message":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			shared.WriteError(w, shared.ErrUnauthorized)
+			http.Error(w, `{"code":401,"message":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
-		tokenString := parts[1]
 		claims := &Claims{}
-
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(parts[1], claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(a.jwtSecret), nil
 		})
 
 		if err != nil || !token.Valid {
-			shared.WriteError(w, shared.ErrUnauthorized)
+			http.Error(w, `{"code":401,"message":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -76,8 +73,8 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// GetUserID extracts user ID from context
-func GetUserID(ctx context.Context) (uuid.UUID, bool) {
+func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	userID, ok := ctx.Value(UserIDKey).(uuid.UUID)
 	return userID, ok
 }
+
