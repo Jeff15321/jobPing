@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jobping/backend/internal/user/service"
-	"github.com/jobping/backend/internal/user/usererr"
+	"github.com/jobping/backend/internal/features/user/service"
+	"github.com/jobping/backend/internal/features/user/usererr"
 )
 
 type UserHandler struct {

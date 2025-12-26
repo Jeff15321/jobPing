@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jobping/backend/internal/user/model"
+	"github.com/jobping/backend/internal/features/user/model"
 )
 
 type UserRepository interface {

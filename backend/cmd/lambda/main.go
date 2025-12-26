@@ -7,22 +7,23 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
-	"github.com/jobping/backend/internal/config"
-	"github.com/jobping/backend/internal/database"
-	"github.com/jobping/backend/internal/server"
+	"github.com/go-chi/chi/v5"
+	"github.com/jobping/backend/internal/app"
 )
 
 var chiLambda *chiadapter.ChiLambda
 
 func init() {
-	cfg := config.Load()
-
-	db, err := database.Connect(cfg.DatabaseURL)
+	appInstance, err := app.Build()
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to build application: %v", err)
 	}
 
-	router := server.NewRouter(cfg, db)
+	router, ok := appInstance.Router.(*chi.Mux)
+	if !ok {
+		log.Fatalf("Router is not a chi.Mux")
+	}
+
 	chiLambda = chiadapter.New(router)
 }
 

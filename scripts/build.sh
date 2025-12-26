@@ -6,9 +6,9 @@ echo "Building Go binaries for AWS Lambda..."
 
 cd backend
 
-# Build API (ARM64 for Graviton2 - cheaper and faster)
-echo "Building API..."
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o ../build/bootstrap ./cmd/api
+# Build Lambda function (ARM64 for Graviton2 - cheaper and faster)
+echo "Building Lambda function..."
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o ../build/bootstrap ./cmd/lambda
 
 echo "Build complete! Binary is in ./build/"
 

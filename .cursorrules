@@ -1,0 +1,115 @@
+# Universal Design Principles
+
+## Core Philosophy
+
+**Always prioritize maintainability, testability, and scalability over convenience or speed of implementation.**
+
+## Design Decision Framework
+
+When making any design decision, ask these questions in order:
+
+1. **Separation of Concerns**: Does this code have a single, clear responsibility?
+2. **Dependency Direction**: Do dependencies flow in the correct direction (high-level → low-level)?
+3. **Encapsulation**: Are internal details hidden from external consumers?
+4. **Testability**: Can this code be tested in isolation with mocks?
+5. **Scalability**: Will this pattern work when the codebase grows 10x?
+
+## Universal Principles
+
+### 1. Composition Over Configuration
+- Prefer explicit dependency injection over implicit global state
+- Wire dependencies at the application boundary (composition root)
+- Avoid service locators, singletons, or global variables for dependencies
+
+### 2. Dependency Inversion
+- High-level modules should not depend on low-level modules
+- Both should depend on abstractions (interfaces)
+- Dependencies should point inward (toward the domain/core)
+
+### 3. Encapsulation
+- Expose only what's necessary for the public API
+- Hide implementation details
+- Prefer minimal public interfaces over exposing internals
+
+### 4. Single Responsibility
+- Each module/class/function should have one reason to change
+- If you can't describe what something does in one sentence, it's doing too much
+- Split when responsibilities diverge
+
+### 5. Open/Closed Principle
+- Open for extension, closed for modification
+- Add new features by extending, not modifying existing code
+- Use interfaces and polymorphism to enable extension
+
+### 6. Interface Segregation
+- Clients should not depend on interfaces they don't use
+- Prefer many small, focused interfaces over one large interface
+- Define interfaces at the point of use (consumer side)
+
+### 7. Don't Repeat Yourself (DRY)
+- But only when the repetition represents the same concept
+- Don't abstract prematurely - wait for 3+ occurrences
+- Duplication is better than wrong abstraction
+
+### 8. Fail Fast
+- Validate inputs early
+- Return errors immediately, don't accumulate them
+- Use type system to prevent invalid states
+
+## Code Organization Principles
+
+### Layer Separation
+- Separate concerns into distinct layers
+- Each layer should only depend on layers below it
+- Never skip layers (e.g., presentation → domain → data, not presentation → data)
+
+### Feature Modules
+- Group related code by feature/domain, not by technical layer
+- Features should be self-contained and independently testable
+- Features should not wire their own dependencies (that's the app's job)
+
+### Dependency Wiring
+- Wire all dependencies at the application boundary (main/app initialization)
+- Don't let modules create their own dependencies
+- Pass dependencies in, don't pull them out
+
+## Error Handling
+
+- Always return errors from functions that can fail
+- Use typed errors for domain-specific failures
+- Don't swallow errors - handle or propagate
+- Fail fast rather than continuing in invalid state
+
+## Testing Considerations
+
+- Design for testability from the start
+- Use dependency injection to enable mocking
+- Test behavior, not implementation
+- Write tests that would catch regressions
+
+## Scalability Considerations
+
+- Design for the codebase being 10x larger
+- Patterns that work for 1 feature should work for 100 features
+- Avoid patterns that require coordination across many files
+- Prefer composition over inheritance
+
+## Red Flags (Stop and Rethink)
+
+- ❌ Code that's hard to test in isolation
+- ❌ Dependencies pointing in wrong direction
+- ❌ Modules that know too much about other modules
+- ❌ Global state or singletons for dependencies
+- ❌ Skipping layers (e.g., presentation directly accessing data)
+- ❌ Business logic mixed with infrastructure concerns
+- ❌ Tight coupling between modules
+- ❌ Premature optimization or abstraction
+
+## When in Doubt
+
+1. **Ask**: "Will this make the code harder to change later?"
+2. **Ask**: "Can I test this easily?"
+3. **Ask**: "Does this violate separation of concerns?"
+4. **Ask**: "What happens when we add 10 more features like this?"
+
+**Remember: Good architecture makes change easy. Bad architecture makes change painful.**

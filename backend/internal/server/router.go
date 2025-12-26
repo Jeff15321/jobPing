@@ -6,12 +6,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jobping/backend/internal/config"
-	"github.com/jobping/backend/internal/user"
+	"github.com/jobping/backend/internal/features/user"
+	"github.com/jobping/backend/internal/features/user/handler"
 )
 
-func NewRouter(cfg *config.Config, db *pgxpool.Pool) *chi.Mux {
+func NewRouter(userHandler *handler.UserHandler, auth *handler.AuthMiddleware) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -30,9 +29,8 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool) *chi.Mux {
 	})
 
 	r.Route("/api", func(r chi.Router) {
-		user.RegisterRoutes(r, db, cfg.JWTSecret, cfg.JWTExpiry)
+		user.RegisterRoutes(r, userHandler, auth)
 	})
 
 	return r
 }
-

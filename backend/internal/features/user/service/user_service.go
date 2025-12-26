@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jobping/backend/internal/user/model"
-	"github.com/jobping/backend/internal/user/repository"
-	"github.com/jobping/backend/internal/user/usererr"
+	"github.com/jobping/backend/internal/features/user/model"
+	"github.com/jobping/backend/internal/features/user/repository"
+	"github.com/jobping/backend/internal/features/user/usererr"
 	"golang.org/x/crypto/bcrypt"
 )
 
