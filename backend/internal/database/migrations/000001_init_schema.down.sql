@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS preferences;
+DROP TABLE IF EXISTS users;
+

@@ -6,29 +6,17 @@ echo "Building Go binaries for AWS Lambda..."
 
 cd backend
 
-# Build API
+# Build API (ARM64 for Graviton2 - cheaper and faster)
 echo "Building API..."
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../build/api ./cmd/api
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o ../build/bootstrap ./cmd/api
 
-# Build Scanner
-echo "Building Scanner..."
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../build/scanner ./cmd/scanner
+echo "Build complete! Binary is in ./build/"
 
-# Build Matcher
-echo "Building Matcher..."
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../build/matcher ./cmd/matcher
-
-echo "Build complete! Binaries are in ./build/"
-
-# Create Lambda deployment packages
+# Create Lambda deployment package
 cd ../build
-echo "Creating Lambda deployment packages..."
+echo "Creating Lambda deployment package..."
 
-zip -j api.zip api
-zip -j scanner.zip scanner
-zip -j matcher.zip matcher
+zip -j api.zip bootstrap
 
-echo "Deployment packages created!"
-echo "- api.zip"
-echo "- scanner.zip"
-echo "- matcher.zip"
+echo "Deployment package created!"
+echo "- api.zip ($(du -h api.zip | cut -f1))"

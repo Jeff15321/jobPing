@@ -76,17 +76,7 @@ The scanner will fetch jobs every 10 minutes and store them in the database.
 ```
 ai-job-scanner/
 ├── backend/
-│   ├── cmd/                    # Executable services
-│   │   ├── api/               # REST API server
-│   │   ├── scanner/           # Job fetcher (cron)
-│   │   └── matcher/           # Job matcher (queue worker)
-│   ├── internal/              # Private application code
-│   │   ├── api/               # API handlers & middleware
-│   │   ├── domain/            # Business logic
-│   │   ├── database/          # Database access
-│   │   ├── integrations/      # External services
-│   │   └── config/            # Configuration
-│   └── go.mod
+
 ├── frontend/
 │   ├── src/
 │   │   ├── components/        # React components
@@ -95,6 +85,50 @@ ai-job-scanner/
 │   └── package.json
 ├── infra/                     # Terraform for AWS
 └── docker-compose.yml
+
+backend:
+yourapp/
+├── cmd/
+│   └── api/
+│       └── main.go            # application entrypoint
+│
+├── internal/
+│   ├── features/
+│   │   └── jobs/
+│   │       ├── http.go        # HTTP handlers
+│   │       ├── service.go     # business logic
+│   │       ├── repository.go  # DB access
+│   │       ├── model.go       # domain entities
+│   │       ├── dto.go         # request/response structs
+│   │       └── errors.go
+│   │
+│   ├── server/
+│   │   └── routes.go          # route registration
+│   │
+│   ├── middleware/            # cross-cutting concerns
+│   │   ├── auth.go
+│   │   ├── logger.go
+│   │   └── recovery.go
+│   │
+│   ├── database/
+│   │   ├── db.go              # DB connection setup
+│   │   └── migrations/        # future: SQL migrations
+│   │
+│   ├── config/                # env/config loading
+│   │   └── config.go
+│   │
+│   ├── shared/                # shared utilities (careful!)
+│   │   ├── errors.go
+│   │   └── pagination.go
+│
+├── pkg/                       # OPTIONAL: reusable libraries
+│
+│
+├── scripts.go
+├── go.mod
+├── go.sum
+└── README.md
+
 ```
 
 ## Development Workflow

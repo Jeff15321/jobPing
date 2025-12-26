@@ -1,89 +1,83 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
-	"github.com/rs/cors"
-	"github.com/yourusername/ai-job-scanner/internal/api/handlers"
-	"github.com/yourusername/ai-job-scanner/internal/api/middleware"
-	"github.com/yourusername/ai-job-scanner/internal/config"
-	"github.com/yourusername/ai-job-scanner/internal/database"
-	"github.com/yourusername/ai-job-scanner/internal/integrations/jobspy"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
+	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
+	"github.com/jobping/backend/internal/config"
+	"github.com/jobping/backend/internal/database"
+	"github.com/jobping/backend/internal/server"
 )
 
-func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
-	}
+var chiLambda *chiadapter.ChiLambda
 
-	// Load configuration
+func init() {
 	cfg := config.Load()
 
-	// Initialize database
+	// Connect to database
 	db, err := database.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
 
-	// Run migrations
-	if err := database.RunMigrations(db); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+	// Run migrations in production (optional, can be run separately)
+	if cfg.IsProduction() {
+		log.Println("Running database migrations...")
+		if err := database.RunMigrations(cfg.DatabaseURL, "internal/database/migrations"); err != nil {
+			log.Printf("Migration warning: %v", err)
+		}
 	}
 
-	// Initialize handlers
-	fetcher := jobspy.NewClient(cfg.SpeedyApplyAPIURL)
-	jobHandler := handlers.NewJobHandler(db, fetcher)
-	userHandler := handlers.NewUserHandler(db)
+	// Create router
+	router := server.NewRouter(cfg, db)
 
-	// Setup router
-	r := mux.NewRouter()
-
-	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recovery)
-
-	// Health check
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	}).Methods("GET")
-
-	// API routes
-	api := r.PathPrefix("/api/v1").Subrouter()
-	
-	// Jobs
-	api.HandleFunc("/jobs", jobHandler.GetJobs).Methods("GET")
-	api.HandleFunc("/jobs/{id}", jobHandler.GetJob).Methods("GET")
-	api.HandleFunc("/jobs/scan", jobHandler.ScanJobs).Methods("POST")
-	
-	// Users
-	api.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
-	api.HandleFunc("/users/{id}/preferences", userHandler.UpdatePreferences).Methods("PUT")
-
-	// CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{cfg.FrontendURL, "http://localhost:5173"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-	})
-
-	handler := c.Handler(r)
-
-	// Start server
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("API server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	// Setup Lambda adapter if running in Lambda
+	if !cfg.IsLocal() {
+		chiLambda = chiadapter.New(router)
 	}
 }
+
+func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	return chiLambda.ProxyWithContext(ctx, req)
+}
+
+func main() {
+	cfg := config.Load()
+
+	if cfg.IsLocal() {
+		// Local development mode
+		db, err := database.Connect(cfg.DatabaseURL)
+		if err != nil {
+			log.Fatalf("Failed to connect to database: %v", err)
+		}
+
+		// Run migrations locally
+		log.Println("Running database migrations...")
+		if err := database.RunMigrations(cfg.DatabaseURL, "internal/database/migrations"); err != nil {
+			log.Printf("Migration warning: %v", err)
+		}
+
+		router := server.NewRouter(cfg, db)
+
+		log.Printf("🚀 Server starting on http://localhost:%s", cfg.Port)
+		log.Printf("📝 Environment: %s", cfg.Environment)
+
+		if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
+			log.Fatalf("Server failed: %v", err)
+		}
+	} else {
+		// AWS Lambda mode
+		if os.Getenv("_LAMBDA_SERVER_PORT") != "" {
+			lambda.Start(handler)
+		} else {
+			// Fallback to Lambda
+			lambda.Start(handler)
+		}
+	}
+}
+

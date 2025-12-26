@@ -1,0 +1,10 @@
+root = "."
+
+[build]
+cmd = "go build -o tmp/main.exe ./cmd/api"
+entrypoint = "tmp/main.exe"
+
+exclude_dir = ["tmp", "vendor"]
+
+[log]
+time = true

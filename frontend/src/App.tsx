@@ -1,95 +1,189 @@
 import { useEffect, useState } from 'react'
-import { JobList } from './components/JobList'
-import { Job } from './types/job'
-import { jobService } from './services/jobService'
 import './App.css'
+import { api, Preference } from './services/api'
 
 function App() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(true)
-  const [scanning, setScanning] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated())
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [preferences, setPreferences] = useState<Preference[]>([])
+  const [newKey, setNewKey] = useState('')
+  const [newValue, setNewValue] = useState('')
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [scanMessage, setScanMessage] = useState<string | null>(null)
+  const [isLoginMode, setIsLoginMode] = useState(true)
 
   useEffect(() => {
-    loadJobs()
-  }, [])
+    if (isAuthenticated) {
+      loadPreferences()
+    }
+  }, [isAuthenticated])
 
-  const loadJobs = async () => {
+  const loadPreferences = async () => {
     try {
       setLoading(true)
-      setError(null)
-      const data = await jobService.getJobs(10)
-      setJobs(data)
+      const prefs = await api.getPreferences()
+      setPreferences(prefs)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load jobs')
+      setError(err instanceof Error ? err.message : 'Failed to load preferences')
     } finally {
       setLoading(false)
     }
   }
 
-  const scanJobs = async () => {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
     try {
-      setScanning(true)
-      setError(null)
-      setScanMessage(null)
-      
-      const result = await jobService.scanJobs()
-      setScanMessage(`✅ Scanned successfully! Fetched ${result.fetched} jobs, stored ${result.stored} new jobs.`)
-      
-      // Reload jobs after scanning
-      await loadJobs()
+      if (isLoginMode) {
+        await api.login(username, password)
+      } else {
+        await api.register(username, password)
+      }
+      setIsAuthenticated(true)
+      setUsername('')
+      setPassword('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to scan jobs')
+      setError(err instanceof Error ? err.message : 'Authentication failed')
     } finally {
-      setScanning(false)
+      setLoading(false)
     }
+  }
+
+  const handleLogout = () => {
+    api.logout()
+    setIsAuthenticated(false)
+    setPreferences([])
+  }
+
+  const handleAddPreference = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newKey.trim() || !newValue.trim()) return
+
+    try {
+      setLoading(true)
+      const pref = await api.createPreference(newKey.trim(), newValue.trim())
+      setPreferences([pref, ...preferences])
+      setNewKey('')
+      setNewValue('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add preference')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeletePreference = async (id: string) => {
+    try {
+      await api.deletePreference(id)
+      setPreferences(preferences.filter(p => p.id !== id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete preference')
+    }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="app">
+        <header className="header">
+          <h1>🔐 JobPing</h1>
+          <p>Sign in to manage your preferences</p>
+        </header>
+
+        <main className="main">
+          <form onSubmit={handleAuth} className="auth-form">
+            <h2>{isLoginMode ? 'Sign In' : 'Create Account'}</h2>
+            
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+            
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            
+            {error && <div className="error">{error}</div>}
+            
+            <button type="submit" disabled={loading}>
+              {loading ? 'Loading...' : (isLoginMode ? 'Sign In' : 'Create Account')}
+            </button>
+            
+            <p className="toggle-auth">
+              {isLoginMode ? "Don't have an account? " : "Already have an account? "}
+              <button type="button" onClick={() => setIsLoginMode(!isLoginMode)}>
+                {isLoginMode ? 'Sign Up' : 'Sign In'}
+              </button>
+            </p>
+          </form>
+        </main>
+      </div>
+    )
   }
 
   return (
     <div className="app">
       <header className="header">
-        <h1>🤖 AI Job Scanner</h1>
-        <p>Smart job matching powered by AI</p>
+        <h1>⚙️ Preferences</h1>
+        <button onClick={handleLogout} className="logout-btn">Sign Out</button>
       </header>
 
       <main className="main">
-        {loading && <div className="loading">Loading jobs...</div>}
-        
-        {error && (
-          <div className="error">
-            <p>Error: {error}</p>
-            <button onClick={loadJobs}>Retry</button>
+        <form onSubmit={handleAddPreference} className="add-form">
+          <input
+            type="text"
+            placeholder="Key (e.g., job_title)"
+            value={newKey}
+            onChange={(e) => setNewKey(e.target.value)}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Value (e.g., Software Engineer)"
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            required
+          />
+          <button type="submit" disabled={loading}>Add</button>
+        </form>
+
+        {error && <div className="error">{error}</div>}
+
+        {loading && preferences.length === 0 && (
+          <div className="loading">Loading preferences...</div>
+        )}
+
+        {preferences.length === 0 && !loading && (
+          <div className="empty">
+            No preferences yet. Add your first one above!
           </div>
         )}
 
-        {!loading && !error && (
-          <>
-            <div className="stats">
-              <span>{jobs.length} jobs found</span>
-              <div className="actions">
-                <button 
-                  onClick={scanJobs} 
-                  className="scan-btn"
-                  disabled={scanning}
-                >
-                  {scanning ? '🔄 Scanning...' : '🔍 Scan for Jobs'}
-                </button>
-                <button onClick={loadJobs} className="refresh-btn">
-                  Refresh
-                </button>
+        <ul className="preferences-list">
+          {preferences.map((pref) => (
+            <li key={pref.id} className="preference-item">
+              <div className="preference-content">
+                <span className="preference-key">{pref.key}</span>
+                <span className="preference-value">{pref.value}</span>
               </div>
-            </div>
-            
-            {scanMessage && (
-              <div className="scan-message">
-                {scanMessage}
-              </div>
-            )}
-            
-            <JobList jobs={jobs} />
-          </>
-        )}
+              <button 
+                onClick={() => handleDeletePreference(pref.id)}
+                className="delete-btn"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
       </main>
     </div>
   )

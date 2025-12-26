@@ -43,3 +43,5 @@ infra/**/*.tfstate.backup
 
 # Docker
 *.log
+
+backend/tmp

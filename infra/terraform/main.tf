@@ -30,6 +30,12 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "jwt_secret" {
+  description = "JWT signing secret"
+  type        = string
+  sensitive   = true
+}
+
 # VPC and Networking (simplified for MVP)
 resource "aws_default_vpc" "default" {}
 

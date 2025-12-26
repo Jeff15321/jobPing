@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting AI Job Scanner - Local Development"
+echo "🚀 Starting JobPing - Local Development"
 echo ""
 
 # Check if Docker is running
@@ -10,11 +10,11 @@ if ! docker info > /dev/null 2>&1; then
 fi
 
 # Start Docker services
-echo "📦 Starting PostgreSQL and LocalStack..."
-docker-compose up -d postgres localstack
+echo "📦 Starting PostgreSQL..."
+docker-compose up -d postgres
 
-echo "⏳ Waiting for services to be ready..."
-sleep 10
+echo "⏳ Waiting for PostgreSQL to be ready..."
+sleep 5
 
 # Check if Go is installed
 if ! command -v go &> /dev/null; then
@@ -29,18 +29,21 @@ if ! command -v node &> /dev/null; then
 fi
 
 echo ""
-echo "✅ Services are ready!"
+echo "✅ PostgreSQL is ready!"
 echo ""
-echo "Next steps:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📝 Next steps:"
+echo ""
 echo "1. Start the API server:"
 echo "   cd backend && go run cmd/api/main.go"
 echo ""
 echo "2. In another terminal, start the frontend:"
 echo "   cd frontend && npm install && npm run dev"
 echo ""
-echo "3. (Optional) Run the scanner to fetch jobs:"
-echo "   cd backend && go run cmd/scanner/main.go"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "📱 Frontend: http://localhost:5173"
-echo "🔌 API: http://localhost:8080"
-echo "💾 Database: localhost:5432"
+echo "🔌 API:      http://localhost:8080"
+echo "💾 Database: localhost:5433"
+echo ""

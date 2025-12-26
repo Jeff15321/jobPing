@@ -56,14 +56,6 @@ cd backend && go run cmd/scanner/main.go
 open http://localhost:5173
 ```
 
-## 📚 Documentation
-
-- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
-- **[SETUP.md](SETUP.md)** - Detailed setup and development guide
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current implementation status
-- **[backend/API_INTEGRATION.md](backend/API_INTEGRATION.md)** - SpeedyApply API integration
-- **[infra/README.md](infra/README.md)** - AWS deployment guide
-
 ## 🛠️ Tech Stack
 
 ### Backend
@@ -89,23 +81,7 @@ open http://localhost:5173
 ```
 ai-job-scanner/
 ├── backend/
-│   ├── cmd/                    # Executable services
-│   │   ├── api/               # REST API server
-│   │   ├── scanner/           # Job fetcher (cron)
-│   │   └── matcher/           # Job matcher (queue worker)
-│   ├── internal/              # Private application code
-│   │   ├── api/               # API handlers & middleware
-│   │   ├── domain/            # Business logic (job, user, match)
-│   │   ├── database/          # Database access layer
-│   │   ├── integrations/      # External services (jobspy, ai, email)
-│   │   └── config/            # Configuration management
-│   └── go.mod
 ├── frontend/
-│   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── services/          # API clients
-│   │   └── types/             # TypeScript types
-│   └── package.json
 ├── infra/
 │   └── terraform/             # AWS infrastructure
 ├── scripts/
@@ -113,26 +89,49 @@ ai-job-scanner/
 │   ├── deploy.sh             # Deploy to AWS
 │   └── local-dev.sh          # Start local development
 └── docker-compose.yml
+
+backend:
+├── cmd/
+│   └── api/
+│       └── main.go            # application entrypoint
+│
+├── internal/
+│   ├── features/
+│   │   └── jobs/
+│   │       ├── http.go        # HTTP handlers
+│   │       ├── service.go     # business logic
+│   │       ├── repository.go  # DB access
+│   │       ├── model.go       # domain entities
+│   │       ├── dto.go         # request/response structs
+│   │       └── errors.go
+│   │
+│   ├── server/
+│   │   └── routes.go          # route registration
+│   │
+│   ├── middleware/            # cross-cutting concerns
+│   │   ├── auth.go
+│   │   ├── logger.go
+│   │
+│   ├── database/
+│   │   ├── db.go              # DB connection setup
+│   │   └── migrations/        # future: SQL migrations
+│   │
+│   ├── config/                # env/config loading
+│   │   └── config.go
+│   │
+│   ├── shared/                # shared utilities (careful!)
+│   │   ├── errors.go
+│   │   └── pagination.go
+│
+├── pkg/                       # OPTIONAL: reusable libraries
+│
+│
+├── scripts.go
+├── go.mod
+├── go.sum
+└── README.md
+
 ```
-
-## 🎯 Current Status
-
-### ✅ Phase 1: Complete (MVP)
-- Job fetching from SpeedyApply API
-- PostgreSQL storage with migrations
-- REST API with CORS
-- React UI with job display
-- Docker Compose for local dev
-- Terraform for AWS infrastructure
-
-### 🚧 Phase 2: In Progress
-- AI web search for job analysis
-- Semantic matching with embeddings
-- Email notifications via SES
-- SQS queue processing
-- User preference management
-
-See [PROJECT_STATUS.md](PROJECT_STATUS.md) for details.
 
 ## 🌐 Deployment
 
