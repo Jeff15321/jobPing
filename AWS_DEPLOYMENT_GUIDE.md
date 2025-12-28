@@ -111,7 +111,7 @@ cd infra/terraform
 cat > terraform.tfvars << EOF
 aws_region   = "us-east-1"
 environment  = "production"
-db_password  = "YourSuperSecurePassword123!"
+database_url  = "YourSuperSecurePassword123!"
 jwt_secret   = "your-super-secret-jwt-key-change-this-in-production"
 EOF
 ```
