@@ -205,7 +205,7 @@ sudo mv migrate /usr/local/bin/
 
 3. Get your database endpoint:
 ```bash
-cd ~/your-project/infra/terraform
+cd ~/jobPing/jobPing/infra/terraform
 terraform output db_endpoint
 ```
 
@@ -226,10 +226,16 @@ go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@lat
 # Get DB endpoint from Terraform
 cd ../infra/terraform
 DB_ENDPOINT=$(terraform output -raw db_endpoint)
+#or use
+terraform output db_endpoint
 
 # Run migrations
 migrate -path ../../backend/internal/database/migrations \
   -database "postgres://jobscanner:YOUR_PASSWORD@${DB_ENDPOINT}/jobscanner?sslmode=require" \
+  up
+#e.g.
+migrate -path backend/internal/database/migrations \
+  -database "postgres://jobscanner:examplepassword%21@jobping-db.fdsafdsa.us-east-1.rds.amazonaws.com:5432/jobscanner?sslmode=require" \
   up
 ```
 
@@ -239,9 +245,7 @@ migrate -path ../../backend/internal/database/migrations \
 
 ```bash
 # From project root
-cd scripts
-chmod +x build.sh
-./build.sh
+bash scripts/build.sh
 ```
 
 This creates `build/api.zip` with your Lambda binary.
@@ -293,6 +297,7 @@ terraform output api_url
 2. **Test health endpoint:**
 ```bash
 curl https://YOUR_API_URL/health
+#e.g. curl https://jnftegf6ge.execute-api.us-east-1.amazonaws.com/health
 # Should return: {"status":"ok"}
 ```
 
