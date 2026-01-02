@@ -6,11 +6,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/jobping/backend/internal/features/job"
+	jobhandler "github.com/jobping/backend/internal/features/job/handler"
 	"github.com/jobping/backend/internal/features/user"
-	"github.com/jobping/backend/internal/features/user/handler"
+	userhandler "github.com/jobping/backend/internal/features/user/handler"
 )
 
-func NewRouter(userHandler *handler.UserHandler, auth *handler.AuthMiddleware) *chi.Mux {
+func NewRouter(userHandler *userhandler.UserHandler, auth *userhandler.AuthMiddleware, jobHandler *jobhandler.JobHandler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -30,6 +32,7 @@ func NewRouter(userHandler *handler.UserHandler, auth *handler.AuthMiddleware) *
 
 	r.Route("/api", func(r chi.Router) {
 		user.RegisterRoutes(r, userHandler, auth)
+		job.RegisterRoutes(r, jobHandler)
 	})
 
 	return r

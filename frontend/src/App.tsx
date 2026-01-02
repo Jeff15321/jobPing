@@ -1,189 +1,140 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { api, Preference } from './services/api'
+import { api, Job } from './services/api'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated())
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [preferences, setPreferences] = useState<Preference[]>([])
-  const [newKey, setNewKey] = useState('')
-  const [newValue, setNewValue] = useState('')
+  const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isLoginMode, setIsLoginMode] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadPreferences()
-    }
-  }, [isAuthenticated])
+    loadJobs()
+  }, [])
 
-  const loadPreferences = async () => {
+  const loadJobs = async () => {
     try {
       setLoading(true)
-      const prefs = await api.getPreferences()
-      setPreferences(prefs)
+      setError(null)
+      const fetchedJobs = await api.getJobs(20)
+      setJobs(fetchedJobs)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load preferences')
+      setError(err instanceof Error ? err.message : 'Failed to load jobs')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
+  const handleFetchJobs = async () => {
     try {
-      if (isLoginMode) {
-        await api.login(username, password)
-      } else {
-        await api.register(username, password)
-      }
-      setIsAuthenticated(true)
-      setUsername('')
-      setPassword('')
+      setFetching(true)
+      setError(null)
+      setMessage(null)
+      const result = await api.fetchJobs()
+      setMessage(`${result.message}`)
+      // Wait a moment for processing, then reload
+      setTimeout(() => loadJobs(), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
+      setError(err instanceof Error ? err.message : 'Failed to fetch jobs')
     } finally {
-      setLoading(false)
+      setFetching(false)
     }
   }
 
-  const handleLogout = () => {
-    api.logout()
-    setIsAuthenticated(false)
-    setPreferences([])
-  }
-
-  const handleAddPreference = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newKey.trim() || !newValue.trim()) return
-
-    try {
-      setLoading(true)
-      const pref = await api.createPreference(newKey.trim(), newValue.trim())
-      setPreferences([pref, ...preferences])
-      setNewKey('')
-      setNewValue('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add preference')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDeletePreference = async (id: string) => {
-    try {
-      await api.deletePreference(id)
-      setPreferences(preferences.filter(p => p.id !== id))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete preference')
-    }
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="app">
-        <header className="header">
-          <h1>🔐 JobPing</h1>
-          <p>Sign in to manage your preferences</p>
-        </header>
-
-        <main className="main">
-          <form onSubmit={handleAuth} className="auth-form">
-            <h2>{isLoginMode ? 'Sign In' : 'Create Account'}</h2>
-            
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-            
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            
-            {error && <div className="error">{error}</div>}
-            
-            <button type="submit" disabled={loading}>
-              {loading ? 'Loading...' : (isLoginMode ? 'Sign In' : 'Create Account')}
-            </button>
-            
-            <p className="toggle-auth">
-              {isLoginMode ? "Don't have an account? " : "Already have an account? "}
-              <button type="button" onClick={() => setIsLoginMode(!isLoginMode)}>
-                {isLoginMode ? 'Sign Up' : 'Sign In'}
-              </button>
-            </p>
-          </form>
-        </main>
-      </div>
-    )
+  const getScoreColor = (score?: number) => {
+    if (!score) return 'var(--text-muted)'
+    if (score >= 80) return 'var(--success)'
+    if (score >= 60) return 'var(--warning)'
+    return 'var(--danger)'
   }
 
   return (
     <div className="app">
       <header className="header">
-        <h1>⚙️ Preferences</h1>
-        <button onClick={handleLogout} className="logout-btn">Sign Out</button>
+        <h1>🔍 JobPing</h1>
+        <p>AI-Powered Job Scanner</p>
       </header>
 
       <main className="main">
-        <form onSubmit={handleAddPreference} className="add-form">
-          <input
-            type="text"
-            placeholder="Key (e.g., job_title)"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Value (e.g., Software Engineer)"
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            required
-          />
-          <button type="submit" disabled={loading}>Add</button>
-        </form>
+        <div className="actions">
+          <button 
+            onClick={handleFetchJobs} 
+            disabled={fetching}
+            className="fetch-btn"
+          >
+            {fetching ? 'Fetching...' : '🚀 Fetch Latest Jobs'}
+          </button>
+          <button 
+            onClick={loadJobs} 
+            disabled={loading}
+            className="refresh-btn"
+          >
+            {loading ? 'Loading...' : '🔄 Refresh'}
+          </button>
+        </div>
 
-        {error && <div className="error">{error}</div>}
+        {message && <div className="message success">{message}</div>}
+        {error && <div className="message error">{error}</div>}
 
-        {loading && preferences.length === 0 && (
-          <div className="loading">Loading preferences...</div>
+        {loading && jobs.length === 0 && (
+          <div className="loading">Loading jobs...</div>
         )}
 
-        {preferences.length === 0 && !loading && (
+        {jobs.length === 0 && !loading && (
           <div className="empty">
-            No preferences yet. Add your first one above!
+            No jobs found. Click "Fetch Latest Jobs" to scrape new jobs!
           </div>
         )}
 
-        <ul className="preferences-list">
-          {preferences.map((pref) => (
-            <li key={pref.id} className="preference-item">
-              <div className="preference-content">
-                <span className="preference-key">{pref.key}</span>
-                <span className="preference-value">{pref.value}</span>
+        <div className="jobs-list">
+          {jobs.map((job) => (
+            <div key={job.id} className="job-card">
+              <div className="job-header">
+                <h3 className="job-title">{job.title}</h3>
+                {job.ai_score !== undefined && (
+                  <span 
+                    className="job-score"
+                    style={{ color: getScoreColor(job.ai_score) }}
+                  >
+                    {job.ai_score}%
+                  </span>
+                )}
               </div>
-              <button 
-                onClick={() => handleDeletePreference(pref.id)}
-                className="delete-btn"
+              
+              <div className="job-company">{job.company}</div>
+              
+              <div className="job-meta">
+                <span className="job-location">📍 {job.location || 'Unknown'}</span>
+                {job.is_remote && <span className="job-remote">🏠 Remote</span>}
+                {job.job_type && <span className="job-type">{job.job_type}</span>}
+              </div>
+
+              {(job.min_salary || job.max_salary) && (
+                <div className="job-salary">
+                  💰 {job.min_salary && `$${job.min_salary.toLocaleString()}`}
+                  {job.min_salary && job.max_salary && ' - '}
+                  {job.max_salary && `$${job.max_salary.toLocaleString()}`}
+                </div>
+              )}
+
+              {job.ai_analysis && (
+                <div className="job-analysis">
+                  <strong>AI Analysis:</strong> {job.ai_analysis}
+                </div>
+              )}
+
+              <a 
+                href={job.job_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="job-link"
               >
-                ✕
-              </button>
-            </li>
+                View Job →
+              </a>
+            </div>
           ))}
-        </ul>
+        </div>
       </main>
     </div>
   )

@@ -1,49 +1,37 @@
 #!/bin/bash
+# Local development startup script
 
-echo "🚀 Starting JobPing - Local Development"
-echo ""
+set -e
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker is not running. Please start Docker first."
-    exit 1
-fi
+echo "🚀 Starting JobPing local development environment..."
 
 # Start Docker services
-echo "📦 Starting PostgreSQL..."
-docker-compose up -d postgres
+echo "📦 Starting Docker services (Postgres + LocalStack)..."
+docker-compose up -d
 
-echo "⏳ Waiting for PostgreSQL to be ready..."
+# Wait for services to be ready
+echo "⏳ Waiting for services to be healthy..."
 sleep 5
 
-# Check if Go is installed
-if ! command -v go &> /dev/null; then
-    echo "❌ Go is not installed. Please install Go 1.21+"
-    exit 1
-fi
-
-# Check if Node is installed
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js 18+"
-    exit 1
-fi
+# Check if services are ready
+docker-compose ps
 
 echo ""
-echo "✅ PostgreSQL is ready!"
+echo "✅ Services started!"
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📝 Quick reference:"
+echo "   - Postgres: localhost:5433"
+echo "   - LocalStack SQS: http://localhost:4566"
+echo "   - SQS Queue URL: http://localhost:4566/000000000000/jobping-jobs-to-filter"
 echo ""
-echo "📝 Next steps:"
+echo "🔧 To start the Go backend:"
+echo "   cd backend && air"
 echo ""
-echo "1. Start the API server:"
-echo "   cd backend && go run cmd/server/main.go"
+echo "🔧 To start the frontend:"
+echo "   cd frontend && npm run dev"
 echo ""
-echo "2. In another terminal, start the frontend:"
-echo "   cd frontend && npm install && npm run dev"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "📱 Frontend: http://localhost:5173"
-echo "🔌 API:      http://localhost:8080"
-echo "💾 Database: localhost:5433"
+echo "🐍 To test Python worker locally:"
+echo "   cd python_workers/jobspy_fetcher"
+echo "   pip install -r requirements.txt"
+echo "   python test_local.py"
 echo ""

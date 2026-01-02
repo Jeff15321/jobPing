@@ -5,14 +5,18 @@ import (
 
 	"github.com/jobping/backend/internal/config"
 	"github.com/jobping/backend/internal/database"
-	"github.com/jobping/backend/internal/features/user/handler"
-	"github.com/jobping/backend/internal/features/user/repository"
-	"github.com/jobping/backend/internal/features/user/service"
+	jobhandler "github.com/jobping/backend/internal/features/job/handler"
+	jobrepo "github.com/jobping/backend/internal/features/job/repository"
+	jobsvc "github.com/jobping/backend/internal/features/job/service"
+	userhandler "github.com/jobping/backend/internal/features/user/handler"
+	userrepo "github.com/jobping/backend/internal/features/user/repository"
+	usersvc "github.com/jobping/backend/internal/features/user/service"
 	"github.com/jobping/backend/internal/server"
 )
 
 type App struct {
-	Router http.Handler
+	Router     http.Handler
+	SQSHandler *jobhandler.SQSHandler
 }
 
 func Build() (*App, error) {
@@ -26,16 +30,24 @@ func Build() (*App, error) {
 	}
 
 	// 3. Build user feature dependencies
-	userRepo := repository.NewUserRepository(db)
-	prefRepo := repository.NewPreferenceRepository(db)
-	userService := service.NewUserService(userRepo, prefRepo)
-	auth := handler.NewAuthMiddleware(cfg.JWTSecret, cfg.JWTExpiry)
-	userHandler := handler.NewUserHandler(userService, auth)
+	userRepo := userrepo.NewUserRepository(db)
+	prefRepo := userrepo.NewPreferenceRepository(db)
+	userService := usersvc.NewUserService(userRepo, prefRepo)
+	auth := userhandler.NewAuthMiddleware(cfg.JWTSecret, cfg.JWTExpiry)
+	userHandler := userhandler.NewUserHandler(userService, auth)
 
-	// 4. Build router
-	router := server.NewRouter(userHandler, auth)
+	// 4. Build job feature dependencies
+	jobRepo := jobrepo.NewJobRepository(db)
+	aiClient := jobsvc.NewOpenAIClient()
+	jobService := jobsvc.NewJobService(jobRepo, aiClient)
+	jobHandler := jobhandler.NewJobHandler(jobService)
+	sqsHandler := jobhandler.NewSQSHandler(jobService)
+
+	// 5. Build router
+	router := server.NewRouter(userHandler, auth, jobHandler)
 
 	return &App{
-		Router: router,
+		Router:     router,
+		SQSHandler: sqsHandler,
 	}, nil
 }

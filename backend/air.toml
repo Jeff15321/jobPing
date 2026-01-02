@@ -1,8 +1,8 @@
 root = "."
 
 [build]
-cmd = "go build -o tmp/main.exe ./cmd/api"
-entrypoint = "tmp/main.exe"
+cmd = "go build -o tmp/server.exe ./cmd/server"
+entrypoint = "tmp/server.exe"
 
 exclude_dir = ["tmp", "vendor"]
 

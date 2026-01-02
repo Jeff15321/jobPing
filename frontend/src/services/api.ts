@@ -18,6 +18,31 @@ interface PreferencesResponse {
   preferences: Preference[];
 }
 
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  job_url: string;
+  job_type: string;
+  is_remote: boolean;
+  min_salary?: number;
+  max_salary?: number;
+  date_posted?: string;
+  ai_score?: number;
+  ai_analysis?: string;
+}
+
+interface JobsResponse {
+  jobs: Job[];
+}
+
+interface FetchJobsResponse {
+  message: string;
+  jobs_found: number;
+  jobs_queued: number;
+}
+
 class ApiService {
   private token: string | null = null;
 
@@ -117,8 +142,25 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Jobs
+  async fetchJobs(searchTerm?: string, location?: string): Promise<FetchJobsResponse> {
+    return this.request<FetchJobsResponse>('/api/jobs/fetch', {
+      method: 'POST',
+      body: JSON.stringify({
+        search_term: searchTerm || 'software engineer',
+        location: location || 'San Francisco, CA',
+        results_wanted: 5,
+      }),
+    });
+  }
+
+  async getJobs(limit?: number): Promise<Job[]> {
+    const response = await this.request<JobsResponse>(`/api/jobs${limit ? `?limit=${limit}` : ''}`);
+    return response.jobs || [];
+  }
 }
 
 export const api = new ApiService();
-export type { Preference, AuthResponse };
+export type { Preference, AuthResponse, Job, FetchJobsResponse };
 

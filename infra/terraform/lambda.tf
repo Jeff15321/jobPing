@@ -35,9 +35,10 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      ENVIRONMENT  = "production"
-      DATABASE_URL = "postgres://jobscanner:${var.db_password}@${aws_db_instance.postgres.endpoint}/jobscanner?sslmode=require"
-      JWT_SECRET   = var.jwt_secret
+      ENVIRONMENT    = "production"
+      DATABASE_URL   = "postgres://jobscanner:${var.db_password}@${aws_db_instance.postgres.endpoint}/jobscanner?sslmode=require"
+      JWT_SECRET     = var.jwt_secret
+      OPENAI_API_KEY = var.openai_api_key
     }
   }
 

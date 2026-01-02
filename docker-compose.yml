@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: jobscanner-db
+    container_name: jobping-db
     environment:
       POSTGRES_USER: jobscanner
       POSTGRES_PASSWORD: password
@@ -18,7 +18,24 @@ services:
       timeout: 5s
       retries: 5
 
-  # Note: API will be run directly with 'go run' for easier development
+  localstack:
+    image: localstack/localstack:latest
+    container_name: jobping-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init.sh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  localstack_data:
