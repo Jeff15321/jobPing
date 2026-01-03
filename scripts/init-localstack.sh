@@ -12,3 +12,4 @@ awslocal sqs create-queue --queue-name jobping-jobs-to-email
 echo "SQS queues created successfully!"
 awslocal sqs list-queues
 
+

@@ -20,6 +20,7 @@ type Job struct {
 	DatePosted  string
 	AIScore     *int
 	AIAnalysis  *string
+	CompanyInfo map[string]interface{}
 	Status      JobStatus
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -32,4 +33,5 @@ const (
 	JobStatusProcessed JobStatus = "processed"
 	JobStatusFailed    JobStatus = "failed"
 )
+
 

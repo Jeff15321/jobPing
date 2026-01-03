@@ -147,3 +147,4 @@ terraform apply
 - [ ] Multiple job board support (Glassdoor, ZipRecruiter)
 - [ ] Job application tracking
 
+

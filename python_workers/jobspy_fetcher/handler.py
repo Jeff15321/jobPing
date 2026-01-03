@@ -2,6 +2,7 @@
 JobSpy Fetcher Lambda Handler
 
 Fetches jobs from job boards using JobSpy library and pushes them to SQS.
+Supports both API Gateway requests and EventBridge scheduled triggers.
 """
 import json
 import os
@@ -18,29 +19,76 @@ logger.setLevel(logging.INFO)
 sqs = boto3.client("sqs", region_name=os.environ.get("AWS_REGION", "us-east-1"))
 SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL", "")
 
+# Default settings for scheduled runs
+DEFAULT_SEARCH_TERM = "software engineer"
+DEFAULT_LOCATION = "United States"
+DEFAULT_RESULTS = 10
+DEFAULT_HOURS_OLD = 1  # Only fetch jobs from last hour (runs every 30 min)
+
+
+def parse_event(event: dict) -> dict:
+    """
+    Parse event from either API Gateway or EventBridge.
+    
+    API Gateway: event has 'body' field with JSON string
+    EventBridge: event has direct fields (search_term, location, etc.)
+    """
+    # Check if this is an EventBridge scheduled event
+    if event.get("source") == "eventbridge" or "detail-type" in event:
+        logger.info("Processing EventBridge scheduled event")
+        return {
+            "search_term": event.get("search_term", DEFAULT_SEARCH_TERM),
+            "location": event.get("location", DEFAULT_LOCATION),
+            "results_wanted": event.get("results_wanted", DEFAULT_RESULTS),
+            "hours_old": event.get("hours_old", DEFAULT_HOURS_OLD),
+        }
+    
+    # Check if this is an API Gateway event
+    if event.get("body"):
+        logger.info("Processing API Gateway event")
+        body = json.loads(event.get("body", "{}"))
+        return {
+            "search_term": body.get("search_term", DEFAULT_SEARCH_TERM),
+            "location": body.get("location", DEFAULT_LOCATION),
+            "results_wanted": body.get("results_wanted", 5),
+            "hours_old": body.get("hours_old", 72),  # API calls get more history
+        }
+    
+    # Direct invocation or test
+    logger.info("Processing direct invocation")
+    return {
+        "search_term": event.get("search_term", DEFAULT_SEARCH_TERM),
+        "location": event.get("location", DEFAULT_LOCATION),
+        "results_wanted": event.get("results_wanted", DEFAULT_RESULTS),
+        "hours_old": event.get("hours_old", DEFAULT_HOURS_OLD),
+    }
+
 
 def handler(event: dict, context: Any) -> dict:
     """
     Lambda handler for fetching jobs.
     
-    Triggered by API Gateway POST /jobs/fetch
+    Triggered by:
+    - API Gateway POST /jobs/fetch
+    - EventBridge scheduled rule (every 30 minutes)
     """
     try:
-        # Parse request body
-        body = json.loads(event.get("body", "{}")) if event.get("body") else {}
-        search_term = body.get("search_term", "software engineer")
-        location = body.get("location", "San Francisco, CA")
-        results_wanted = body.get("results_wanted", 5)
+        # Parse event parameters
+        params = parse_event(event)
+        search_term = params["search_term"]
+        location = params["location"]
+        results_wanted = params["results_wanted"]
+        hours_old = params["hours_old"]
 
-        logger.info(f"Fetching jobs: term='{search_term}', location='{location}', count={results_wanted}")
+        logger.info(f"Fetching jobs: term='{search_term}', location='{location}', count={results_wanted}, hours_old={hours_old}")
 
         # Fetch jobs using JobSpy
         jobs_df = scrape_jobs(
-            site_name=["indeed", "linkedin"],
+            site_name=["indeed", "linkedin", "glassdoor"],
             search_term=search_term,
             location=location,
             results_wanted=results_wanted,
-            hours_old=72,
+            hours_old=hours_old,
             country_indeed="USA",
         )
 
@@ -71,17 +119,21 @@ def handler(event: dict, context: Any) -> dict:
             else:
                 logger.warning("SQS_QUEUE_URL not set, skipping SQS")
 
+        result = {
+            "message": f"Fetched {len(jobs_df)} jobs, sent {jobs_sent} to processing queue",
+            "jobs_found": len(jobs_df),
+            "jobs_queued": jobs_sent,
+            "trigger": "eventbridge" if event.get("source") == "eventbridge" else "api",
+        }
+
+        # Return API Gateway formatted response
         return {
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": json.dumps({
-                "message": f"Fetched {len(jobs_df)} jobs, sent {jobs_sent} to processing queue",
-                "jobs_found": len(jobs_df),
-                "jobs_queued": jobs_sent,
-            }),
+            "body": json.dumps(result),
         }
 
     except Exception as e:
@@ -94,4 +146,3 @@ def handler(event: dict, context: Any) -> dict:
             },
             "body": json.dumps({"error": str(e)}),
         }
-

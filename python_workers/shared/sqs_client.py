@@ -34,3 +34,4 @@ def send_message(queue_url: str, message: dict) -> dict:
         MessageBody=json.dumps(message),
     )
 
+

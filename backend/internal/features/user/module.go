@@ -13,6 +13,15 @@ func RegisterRoutes(r chi.Router, userHandler *handler.UserHandler, auth *handle
 	// Protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(auth.Authenticate)
+
+		// Profile and settings
+		r.Get("/me", userHandler.GetProfile)
+		r.Put("/me/prompt", userHandler.UpdatePrompt)
+		r.Put("/me/discord", userHandler.UpdateDiscord)
+		r.Put("/me/threshold", userHandler.UpdateThreshold)
+		r.Get("/me/matches", userHandler.GetMatches)
+
+		// Preferences (legacy)
 		r.Get("/preferences", userHandler.GetPreferences)
 		r.Post("/preferences", userHandler.CreatePreference)
 		r.Put("/preferences/{id}", userHandler.UpdatePreference)

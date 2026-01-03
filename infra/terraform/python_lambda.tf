@@ -106,3 +106,4 @@ output "ecr_repository_url" {
   value = aws_ecr_repository.jobspy_fetcher.repository_url
 }
 
+

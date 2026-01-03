@@ -7,3 +7,4 @@ COPY handler.py ${LAMBDA_TASK_ROOT}
 
 CMD ["handler.handler"]
 
+

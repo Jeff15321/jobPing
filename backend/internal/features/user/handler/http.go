@@ -195,6 +195,128 @@ func (h *UserHandler) DeletePreference(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	user, err := h.service.GetUserByID(r.Context(), userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if user == nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ProfileResponse{
+		ID:              user.ID,
+		Username:        user.Username,
+		AIPrompt:        user.AIPrompt,
+		DiscordWebhook:  user.DiscordWebhook,
+		NotifyThreshold: user.NotifyThreshold,
+	})
+}
+
+func (h *UserHandler) UpdatePrompt(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req UpdatePromptRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.UpdateAIPrompt(r.Context(), userID, req.Prompt); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "prompt updated"})
+}
+
+func (h *UserHandler) UpdateDiscord(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req UpdateDiscordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.UpdateDiscordWebhook(r.Context(), userID, req.WebhookURL); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "discord webhook updated"})
+}
+
+func (h *UserHandler) UpdateThreshold(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req UpdateThresholdRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Threshold < 0 || req.Threshold > 100 {
+		writeError(w, http.StatusBadRequest, "threshold must be between 0 and 100")
+		return
+	}
+
+	if err := h.service.UpdateNotifyThreshold(r.Context(), userID, req.Threshold); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "threshold updated"})
+}
+
+func (h *UserHandler) GetMatches(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	matches, err := h.service.GetUserMatches(r.Context(), userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	response := UserMatchesResponse{Matches: make([]UserJobMatchResponse, len(matches))}
+	for i, m := range matches {
+		response.Matches[i] = UserJobMatchResponse{
+			ID:        m.ID,
+			JobID:     m.JobID,
+			Score:     m.Score,
+			Analysis:  m.Analysis,
+			Notified:  m.Notified,
+			CreatedAt: m.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

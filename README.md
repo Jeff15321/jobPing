@@ -1,230 +1,102 @@
-# 🤖 AI Job Scanner
+# JobPing
 
-An intelligent job monitoring system that fetches jobs from SpeedyApply API, performs AI-powered analysis, and matches them with user preferences using semantic search.
+Job monitoring system that scrapes job postings, enriches them with AI analysis, and notifies users when matching jobs are found.
 
-## ✨ Features
-
-- 🔄 **Automated Job Fetching**: Scans SpeedyApply API every 10 minutes
-- 🤖 **AI-Powered Analysis**: Web search to gather company reputation, benefits, culture
-- 🎯 **Semantic Matching**: Uses AI embeddings to match jobs with user preferences
-- 📧 **Email Alerts**: Notifies users when matching jobs are found
-- 🎨 **Beautiful UI**: Modern React interface with real-time updates
-
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Scanner   │─────▶│  PostgreSQL  │◀─────│     API     │
-│  (Cron/10m) │      │   Database   │      │  (REST)     │
-└─────────────┘      └──────────────┘      └─────────────┘
-       │                     │                      │
-       │                     ▼                      │
-       │              ┌─────────────┐              │
-       └─────────────▶│  SQS Queue  │              │
-                      └─────────────┘              │
-                             │                      │
-                             ▼                      ▼
-                      ┌─────────────┐      ┌─────────────┐
-                      │   Matcher   │      │   React UI  │
-                      │  (Worker)   │      │  (Vercel)   │
-                      └─────────────┘      └─────────────┘
-                             │
-                             ▼
-                      ┌─────────────┐
-                      │  Email/SES  │
-                      └─────────────┘
+EventBridge (30min) --> JobSpy Lambda --> SQS --> Go Lambda --> PostgreSQL
+                                                      |
+                                                      v
+                                              SQS (notify) --> Apprise Lambda --> Discord
 ```
 
-## 🚀 Quick Start
+**Components:**
+- **JobSpy Lambda** (Python): Scrapes jobs from Indeed, LinkedIn via JobSpy library
+- **Go Lambda**: AI analysis, user matching, database operations
+- **Apprise Lambda** (Python): Sends notifications via Discord webhooks
+- **PostgreSQL (RDS)**: Stores jobs, users, and match results
 
-**Get running in 5 minutes!** See [QUICKSTART.md](QUICKSTART.md)
+## Quick Start
 
 ```bash
-# 1. Start services
+# Start database
 docker-compose up -d
 
-# 2. Run API (Terminal 1)
-cd backend && go run cmd/api/main.go
+# Run backend
+cd backend && air
 
-# 3. Run Frontend (Terminal 2)
+# Run frontend
 cd frontend && npm install && npm run dev
-
-# 4. Fetch jobs (Terminal 3)
-cd backend && go run cmd/scanner/main.go
-
-# 5. Open browser
-open http://localhost:5173
 ```
 
-## 🛠️ Tech Stack
+Open http://localhost:5173
 
-### Backend
-- **Go 1.21+** - High-performance, concurrent job processing
-- **PostgreSQL** - Reliable data storage with JSONB for AI analysis
-- **AWS Lambda** - Serverless compute for scalability
-- **AWS SQS** - Message queue for job processing
-- **AWS SES** - Email notifications
-
-### Frontend
-- **React 18** - Modern UI framework
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool
-- **Vercel** - Edge deployment
-
-### Infrastructure
-- **Terraform** - Infrastructure as Code
-- **Docker Compose** - Local development
-- **LocalStack** - Local AWS simulation
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-ai-job-scanner/
+jobping/
 ├── backend/
-├── frontend/
-├── infra/
-│   └── terraform/             # AWS infrastructure
-├── scripts/
-│   ├── build.sh              # Build Go binaries
-│   ├── deploy.sh             # Deploy to AWS
-│   └── local-dev.sh          # Start local development
-└── docker-compose.yml
-
-backend:
-├── cmd/
-│   └── api/
-│       └── main.go            # application entrypoint
-│
-├── internal/
-│   ├── features/
-│   │   └── jobs/
-│   │       ├── http.go        # HTTP handlers
-│   │       ├── service.go     # business logic
-│   │       ├── repository.go  # DB access
-│   │       ├── model.go       # domain entities
-│   │       ├── dto.go         # request/response structs
-│   │       └── errors.go
-│   │
-│   ├── server/
-│   │   └── routes.go          # route registration
-│   │
-│   ├── middleware/            # cross-cutting concerns
-│   │   ├── auth.go
-│   │   ├── logger.go
-│   │
-│   ├── database/
-│   │   ├── db.go              # DB connection setup
-│   │   └── migrations/        # future: SQL migrations
-│   │
-│   ├── config/                # env/config loading
-│   │   └── config.go
-│   │
-│   ├── shared/                # shared utilities (careful!)
-│   │   ├── errors.go
-│   │   └── pagination.go
-│
-├── pkg/                       # OPTIONAL: reusable libraries
-│
-│
-├── scripts.go
-├── go.mod
-├── go.sum
-└── README.md
-
+│   ├── cmd/
+│   │   ├── lambda/          # AWS Lambda entrypoint
+│   │   └── server/          # Local server entrypoint
+│   └── internal/
+│       ├── features/
+│       │   ├── user/        # Auth, preferences
+│       │   └── job/         # Job processing, matching
+│       ├── database/        # Migrations, connection
+│       └── config/          # Environment config
+├── frontend/                # React + TypeScript
+├── python_workers/
+│   ├── jobspy_fetcher/      # Job scraping
+│   └── notifier/            # Discord notifications
+└── infra/terraform/         # AWS infrastructure
 ```
 
-## 🌐 Deployment
+## Tech Stack
 
-### Local Development
-```bash
-docker-compose up -d
-cd backend && go run cmd/api/main.go
-cd frontend && npm run dev
-```
+| Layer | Technology |
+|-------|------------|
+| Backend | Go 1.21+, Chi router |
+| Frontend | React 18, TypeScript, Vite |
+| Database | PostgreSQL 16 |
+| Infrastructure | AWS Lambda, SQS, RDS, EventBridge |
+| IaC | Terraform |
 
-### Deploy to AWS
+## Deployment
+
 ```bash
-# Deploy infrastructure
 cd infra/terraform
 terraform init
 terraform apply
-
-# Build and deploy Lambda functions
-./scripts/build.sh
-./scripts/deploy.sh
 ```
 
-### Deploy Frontend to Vercel
-```bash
-cd frontend
-vercel deploy --prod
-```
+## Environment Variables
 
-## 🔧 Configuration
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `OPENAI_API_KEY` | OpenAI API key for job analysis |
+| `SQS_QUEUE_URL` | SQS queue for job processing |
+| `JWT_SECRET` | Secret for JWT token signing |
 
-### Environment Variables
-
-**Local** (`.env`):
-```bash
-ENVIRONMENT=local
-DATABASE_URL=postgres://jobscanner:password@localhost:5432/jobscanner
-AWS_ENDPOINT=http://localhost:4566
-```
-
-**Production** (AWS Lambda):
-```bash
-ENVIRONMENT=lambda
-DATABASE_URL=<from Terraform>
-SQS_QUEUE_URL=<from Terraform>
-OPENAI_API_KEY=<your key>
-```
-
-## 🧪 Testing
-
-```bash
-# Backend tests
-cd backend && go test ./...
-
-# Frontend tests
-cd frontend && npm test
-
-# Integration tests
-cd tests/integration && go test
-```
-
-## 📊 API Endpoints
+## API Endpoints
 
 ```
-GET  /health                    # Health check
-GET  /api/v1/jobs              # List jobs
-GET  /api/v1/jobs/:id          # Get job details
-POST /api/v1/users             # Create user
-PUT  /api/v1/users/:id/preferences  # Update preferences
+POST /api/auth/register       Register new user
+POST /api/auth/login          Login
+PUT  /api/users/me/prompt     Set AI matching prompt
+PUT  /api/users/me/discord    Set Discord webhook
+GET  /api/users/me/matches    Get job matches
+GET  /api/jobs                List all jobs
 ```
 
-## 🤝 Contributing
+## Documentation
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally
-5. Submit a pull request
+- [LOCAL_SETUP.md](LOCAL_SETUP.md) - Detailed local development setup
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
+- [docs/SQS_EXPLAINED.md](docs/SQS_EXPLAINED.md) - SQS concepts
 
-## 📝 License
+## License
 
-See [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- Check [SETUP.md](SETUP.md) for troubleshooting
-- Review [PROJECT_STATUS.md](PROJECT_STATUS.md) for known issues
-- Open an issue for bugs or feature requests
-
-## 🎉 Acknowledgments
-
-- SpeedyApply for job data API
-- Inspired by the Reddit post on r/csMajors
-
----
-
-**Ready to get started?** → [QUICKSTART.md](QUICKSTART.md)
+MIT

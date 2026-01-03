@@ -32,14 +32,15 @@ func Build() (*App, error) {
 	// 3. Build user feature dependencies
 	userRepo := userrepo.NewUserRepository(db)
 	prefRepo := userrepo.NewPreferenceRepository(db)
-	userService := usersvc.NewUserService(userRepo, prefRepo)
+	matchRepo := userrepo.NewUserJobMatchRepository(db)
+	userService := usersvc.NewUserService(userRepo, prefRepo, matchRepo)
 	auth := userhandler.NewAuthMiddleware(cfg.JWTSecret, cfg.JWTExpiry)
 	userHandler := userhandler.NewUserHandler(userService, auth)
 
 	// 4. Build job feature dependencies
 	jobRepo := jobrepo.NewJobRepository(db)
 	aiClient := jobsvc.NewOpenAIClient()
-	jobService := jobsvc.NewJobService(jobRepo, aiClient)
+	jobService := jobsvc.NewJobService(jobRepo, aiClient, userRepo, matchRepo)
 	jobHandler := jobhandler.NewJobHandler(jobService)
 	sqsHandler := jobhandler.NewSQSHandler(jobService)
 

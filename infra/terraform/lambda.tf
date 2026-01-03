@@ -35,10 +35,11 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      ENVIRONMENT    = "production"
-      DATABASE_URL   = "postgres://jobscanner:${var.db_password}@${aws_db_instance.postgres.endpoint}/jobscanner?sslmode=require"
-      JWT_SECRET     = var.jwt_secret
-      OPENAI_API_KEY = var.openai_api_key
+      ENVIRONMENT          = "production"
+      DATABASE_URL         = "postgres://jobscanner:${var.db_password}@${aws_db_instance.postgres.endpoint}/jobscanner?sslmode=require"
+      JWT_SECRET           = var.jwt_secret
+      OPENAI_API_KEY       = var.openai_api_key
+      NOTIFY_SQS_QUEUE_URL = aws_sqs_queue.jobs_to_email.url
     }
   }
 

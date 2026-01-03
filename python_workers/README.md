@@ -72,3 +72,4 @@ Python Lambdas are deployed as container images:
 | `SQS_ENDPOINT_URL` | (Optional) LocalStack endpoint for local testing |
 | `AWS_REGION` | AWS region (default: us-east-1) |
 
+

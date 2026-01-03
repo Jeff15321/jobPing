@@ -7,3 +7,4 @@ var (
 	ErrAIAnalysisFailed = errors.New("AI analysis failed")
 )
 
+

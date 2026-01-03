@@ -12,14 +12,16 @@ import (
 )
 
 type UserService struct {
-	userRepo repository.UserRepository
-	prefRepo repository.PreferenceRepository
+	userRepo  repository.UserRepository
+	prefRepo  repository.PreferenceRepository
+	matchRepo repository.UserJobMatchRepository
 }
 
-func NewUserService(userRepo repository.UserRepository, prefRepo repository.PreferenceRepository) *UserService {
+func NewUserService(userRepo repository.UserRepository, prefRepo repository.PreferenceRepository, matchRepo repository.UserJobMatchRepository) *UserService {
 	return &UserService{
-		userRepo: userRepo,
-		prefRepo: prefRepo,
+		userRepo:  userRepo,
+		prefRepo:  prefRepo,
+		matchRepo: matchRepo,
 	}
 }
 
@@ -128,4 +130,28 @@ func (s *UserService) DeletePreference(ctx context.Context, userID, prefID uuid.
 	}
 
 	return s.prefRepo.Delete(ctx, prefID)
+}
+
+func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+	return s.userRepo.GetUserByID(ctx, userID)
+}
+
+func (s *UserService) UpdateAIPrompt(ctx context.Context, userID uuid.UUID, prompt string) error {
+	return s.userRepo.UpdateAIPrompt(ctx, userID, prompt)
+}
+
+func (s *UserService) UpdateDiscordWebhook(ctx context.Context, userID uuid.UUID, webhook string) error {
+	return s.userRepo.UpdateDiscordWebhook(ctx, userID, webhook)
+}
+
+func (s *UserService) UpdateNotifyThreshold(ctx context.Context, userID uuid.UUID, threshold int) error {
+	return s.userRepo.UpdateNotifyThreshold(ctx, userID, threshold)
+}
+
+func (s *UserService) GetUserMatches(ctx context.Context, userID uuid.UUID) ([]model.UserJobMatch, error) {
+	return s.matchRepo.GetByUserID(ctx, userID)
+}
+
+func (s *UserService) GetUsersWithPrompts(ctx context.Context) ([]model.User, error) {
+	return s.userRepo.GetUsersWithPrompts(ctx)
 }
