@@ -1,15 +1,18 @@
 """
 JobSpy Fetcher Lambda Handler
 
-Fetches jobs from job boards using JobSpy library and pushes them to SQS.
+Fetches jobs from job boards using JobSpy library, stores them in RDS, and sends job_id to SQS.
 Supports both API Gateway requests and EventBridge scheduled triggers.
 """
 import json
 import os
 import logging
 from typing import Any
+from datetime import datetime
+import uuid
 
 import boto3
+import psycopg2
 from jobspy import scrape_jobs
 
 logger = logging.getLogger()
@@ -17,13 +20,25 @@ logger.setLevel(logging.INFO)
 
 # Initialize SQS client
 sqs = boto3.client("sqs", region_name=os.environ.get("AWS_REGION", "us-east-1"))
-SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL", "")
+SQS_QUEUE_URL = os.environ.get("JOB_ANALYSIS_QUEUE_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 # Default settings for scheduled runs
 DEFAULT_SEARCH_TERM = "software engineer"
 DEFAULT_LOCATION = "United States"
 DEFAULT_RESULTS = 10
 DEFAULT_HOURS_OLD = 1  # Only fetch jobs from last hour (runs every 30 min)
+
+
+def get_db_connection():
+    """Get PostgreSQL database connection."""
+    if not DATABASE_URL:
+        return None
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        return None
 
 
 def parse_event(event: dict) -> dict:
@@ -94,35 +109,92 @@ def handler(event: dict, context: Any) -> dict:
 
         logger.info(f"Found {len(jobs_df)} jobs")
 
-        # Push each job to SQS for AI filtering
-        jobs_sent = 0
-        for _, job in jobs_df.iterrows():
-            job_message = {
-                "title": str(job.get("title", "")),
-                "company": str(job.get("company", "")),
-                "location": str(job.get("location", "")),
-                "job_url": str(job.get("job_url", "")),
-                "description": str(job.get("description", ""))[:2000],  # Truncate long descriptions
-                "job_type": str(job.get("job_type", "")),
-                "is_remote": bool(job.get("is_remote", False)),
-                "min_amount": float(job.get("min_amount")) if job.get("min_amount") else None,
-                "max_amount": float(job.get("max_amount")) if job.get("max_amount") else None,
-                "date_posted": str(job.get("date_posted", "")),
+        # Connect to database
+        conn = get_db_connection()
+        if not conn:
+            logger.error("Database connection failed, cannot store jobs")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({"error": "Database connection failed"}),
             }
 
-            if SQS_QUEUE_URL:
-                sqs.send_message(
-                    QueueUrl=SQS_QUEUE_URL,
-                    MessageBody=json.dumps(job_message),
-                )
-                jobs_sent += 1
-            else:
-                logger.warning("SQS_QUEUE_URL not set, skipping SQS")
+        jobs_created = 0
+        jobs_queued = 0
+        
+        try:
+            cur = conn.cursor()
+            now = datetime.utcnow()
+            
+            for _, job_row in jobs_df.iterrows():
+                job_id = uuid.uuid4()
+                job_url = str(job_row.get("job_url", ""))
+                
+                # Check if job already exists
+                cur.execute("SELECT id FROM jobs WHERE job_url = %s", (job_url,))
+                existing = cur.fetchone()
+                
+                if existing:
+                    logger.info(f"Job already exists: {job_url}, skipping")
+                    continue
+                
+                # Insert job into database
+                cur.execute("""
+                    INSERT INTO jobs (
+                        id, title, company, location, job_url, description, job_type,
+                        is_remote, min_salary, max_salary, date_posted, status,
+                        created_at, updated_at
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """, (
+                    str(job_id),
+                    str(job_row.get("title", "")),
+                    str(job_row.get("company", "")),
+                    str(job_row.get("location", "")),
+                    job_url,
+                    str(job_row.get("description", ""))[:5000],  # Truncate if too long
+                    str(job_row.get("job_type", "")),
+                    bool(job_row.get("is_remote", False)),
+                    float(job_row.get("min_amount")) if job_row.get("min_amount") else None,
+                    float(job_row.get("max_amount")) if job_row.get("max_amount") else None,
+                    str(job_row.get("date_posted", "")),
+                    "pending",
+                    now,
+                    now,
+                ))
+                
+                jobs_created += 1
+                
+                # Send job_id to SQS
+                if SQS_QUEUE_URL:
+                    message = {"job_id": str(job_id)}
+                    sqs.send_message(
+                        QueueUrl=SQS_QUEUE_URL,
+                        MessageBody=json.dumps(message),
+                    )
+                    jobs_queued += 1
+                else:
+                    logger.warning("JOB_ANALYSIS_QUEUE_URL not set, skipping SQS")
+            
+            conn.commit()
+            cur.close()
+            
+        except Exception as e:
+            logger.error(f"Error processing jobs: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
         result = {
-            "message": f"Fetched {len(jobs_df)} jobs, sent {jobs_sent} to processing queue",
+            "message": f"Fetched {len(jobs_df)} jobs, created {jobs_created} in database, queued {jobs_queued} for analysis",
             "jobs_found": len(jobs_df),
-            "jobs_queued": jobs_sent,
+            "jobs_created": jobs_created,
+            "jobs_queued": jobs_queued,
             "trigger": "eventbridge" if event.get("source") == "eventbridge" else "api",
         }
 

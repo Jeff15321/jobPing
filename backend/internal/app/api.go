@@ -5,21 +5,17 @@ import (
 
 	"github.com/jobping/backend/internal/config"
 	"github.com/jobping/backend/internal/database"
-	jobhandler "github.com/jobping/backend/internal/features/job/handler"
-	jobrepo "github.com/jobping/backend/internal/features/job/repository"
-	jobsvc "github.com/jobping/backend/internal/features/job/service"
 	userhandler "github.com/jobping/backend/internal/features/user/handler"
 	userrepo "github.com/jobping/backend/internal/features/user/repository"
 	usersvc "github.com/jobping/backend/internal/features/user/service"
 	"github.com/jobping/backend/internal/server"
 )
 
-type App struct {
-	Router     http.Handler
-	SQSHandler *jobhandler.SQSHandler
+type APIApp struct {
+	Router http.Handler
 }
 
-func Build() (*App, error) {
+func BuildAPI() (*APIApp, error) {
 	// 1. Load config
 	cfg := config.Load()
 
@@ -37,18 +33,12 @@ func Build() (*App, error) {
 	auth := userhandler.NewAuthMiddleware(cfg.JWTSecret, cfg.JWTExpiry)
 	userHandler := userhandler.NewUserHandler(userService, auth)
 
-	// 4. Build job feature dependencies
-	jobRepo := jobrepo.NewJobRepository(db)
-	aiClient := jobsvc.NewOpenAIClient()
-	jobService := jobsvc.NewJobService(jobRepo, aiClient, userRepo, matchRepo)
-	jobHandler := jobhandler.NewJobHandler(jobService)
-	sqsHandler := jobhandler.NewSQSHandler(jobService)
+	// 4. Build router (user routes only)
+	router := server.NewUserRouter(userHandler, auth)
 
-	// 5. Build router
-	router := server.NewRouter(userHandler, auth, jobHandler)
-
-	return &App{
-		Router:     router,
-		SQSHandler: sqsHandler,
+	return &APIApp{
+		Router: router,
 	}, nil
 }
+
+

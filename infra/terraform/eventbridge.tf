@@ -40,3 +40,4 @@ output "eventbridge_rule_arn" {
   value = aws_cloudwatch_event_rule.job_fetch_cron.arn
 }
 
+

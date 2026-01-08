@@ -12,7 +12,7 @@ import (
 func main() {
 	cfg := config.Load()
 
-	app, err := app.Build()
+	app, err := app.BuildServer()
 	if err != nil {
 		log.Fatalf("Failed to build application: %v", err)
 	}

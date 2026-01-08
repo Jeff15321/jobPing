@@ -49,7 +49,7 @@ resource "aws_iam_role_policy" "python_lambda_sqs" {
           "sqs:GetQueueUrl"
         ]
         Resource = [
-          aws_sqs_queue.jobs_to_filter.arn
+          aws_sqs_queue.job_analysis.arn
         ]
       }
     ]
@@ -67,8 +67,9 @@ resource "aws_lambda_function" "jobspy_fetcher" {
 
   environment {
     variables = {
-      SQS_QUEUE_URL = aws_sqs_queue.jobs_to_filter.url
-      AWS_REGION    = var.aws_region
+      DATABASE_URL          = "postgres://jobscanner:${var.db_password}@${aws_db_instance.postgres.endpoint}/jobscanner?sslmode=require"
+      JOB_ANALYSIS_QUEUE_URL = aws_sqs_queue.job_analysis.url
+      AWS_REGION            = var.aws_region
     }
   }
 

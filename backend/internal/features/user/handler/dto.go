@@ -73,4 +73,3 @@ type UserJobMatchResponse struct {
 type UserMatchesResponse struct {
 	Matches []UserJobMatchResponse `json:"matches"`
 }
-

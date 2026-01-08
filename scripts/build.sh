@@ -4,33 +4,49 @@ set -e
 
 echo "Building Go binaries for AWS Lambda..."
 
-
 # Verify we're using the correct Go version
 GO_VERSION=$(go version)
 echo "Using: $GO_VERSION"
 
 cd backend
 
-# Build Lambda function (ARM64 for Graviton2 - cheaper and faster)
-echo "Building Lambda function..."
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o ../build/bootstrap ./cmd/lambda
+# Build all Lambda functions
+LAMBDAS=("api" "jobs_api" "workers/job_analysis" "workers/user_fanout" "workers/user_analysis" "workers/notifier")
 
-echo "Build complete! Binary is in ./build/"
+for lambda in "${LAMBDAS[@]}"; do
+  name=$(basename $lambda)
+  echo "Building $name..."
+  GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o ../build/${name}_bootstrap ./cmd/$lambda
+done
 
-# Create Lambda deployment package
+echo "Build complete! Binaries are in ./build/"
+
+# Create Lambda deployment packages
 cd ../build
-echo "Creating Lambda deployment package..."
+echo "Creating Lambda deployment packages..."
+
+# Map lambda paths to zip file names
+declare -A ZIP_NAMES
+ZIP_NAMES["api"]="api.zip"
+ZIP_NAMES["jobs_api"]="jobs_api.zip"
+ZIP_NAMES["job_analysis"]="job_analysis_worker.zip"
+ZIP_NAMES["user_fanout"]="user_fanout_worker.zip"
+ZIP_NAMES["user_analysis"]="user_analysis_worker.zip"
+ZIP_NAMES["notifier"]="notifier_worker.zip"
 
 # Use PowerShell on Windows, zip on Linux/Mac
-if command -v powershell.exe &> /dev/null; then
-  powershell.exe -Command "Compress-Archive -Path bootstrap -DestinationPath api.zip -Force"
-else
-  zip -j api.zip bootstrap
-fi
+for lambda in "${LAMBDAS[@]}"; do
+  name=$(basename $lambda)
+  zip_name=${ZIP_NAMES[$name]}
+  echo "Packaging ${name} as ${zip_name}..."
+  mv ${name}_bootstrap bootstrap
+  if command -v powershell.exe &> /dev/null; then
+    powershell.exe -Command "Compress-Archive -Path bootstrap -DestinationPath ${zip_name} -Force"
+  else
+    zip -j ${zip_name} bootstrap
+  fi
+  rm bootstrap
+done
 
-echo "Deployment package created!"
-if [ -f api.zip ]; then
-  echo "- api.zip ($(du -h api.zip | cut -f1))"
-else
-  echo "Warning: api.zip was not created"
-fi
+echo "Deployment packages created!"
+ls -la *.zip 2>/dev/null || echo "No zip files found"

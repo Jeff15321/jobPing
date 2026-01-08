@@ -7,23 +7,24 @@ import (
 )
 
 type Job struct {
-	ID          uuid.UUID
-	Title       string
-	Company     string
-	Location    string
-	JobURL      string
-	Description string
-	JobType     string
-	IsRemote    bool
-	MinSalary   *float64
-	MaxSalary   *float64
-	DatePosted  string
-	AIScore     *int
-	AIAnalysis  *string
-	CompanyInfo map[string]interface{}
-	Status      JobStatus
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID                   uuid.UUID
+	Title                string
+	Company              string
+	Location             string
+	JobURL               string
+	Description          string
+	JobType              string
+	IsRemote             bool
+	MinSalary            *float64
+	MaxSalary            *float64
+	DatePosted           string
+	AIScore              *int
+	AIAnalysis           *string
+	CompanyInfo          map[string]interface{}
+	CompanyInfoUpdatedAt *time.Time
+	Status               JobStatus
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 type JobStatus string

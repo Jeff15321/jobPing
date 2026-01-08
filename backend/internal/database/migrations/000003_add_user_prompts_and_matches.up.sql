@@ -24,3 +24,4 @@ CREATE INDEX IF NOT EXISTS idx_user_job_matches_job_id ON user_job_matches(job_i
 CREATE INDEX IF NOT EXISTS idx_user_job_matches_score ON user_job_matches(score DESC);
 CREATE INDEX IF NOT EXISTS idx_user_job_matches_notified ON user_job_matches(notified) WHERE notified = FALSE;
 
+

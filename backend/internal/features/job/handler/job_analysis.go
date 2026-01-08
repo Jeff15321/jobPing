@@ -42,3 +42,4 @@ func (h *JobAnalysisHandler) HandleEvent(ctx context.Context, sqsEvent events.SQ
 	return nil
 }
 
+

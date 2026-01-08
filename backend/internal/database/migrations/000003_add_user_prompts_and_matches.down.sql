@@ -9,3 +9,4 @@ ALTER TABLE users DROP COLUMN IF EXISTS notify_threshold;
 ALTER TABLE users DROP COLUMN IF EXISTS discord_webhook;
 ALTER TABLE users DROP COLUMN IF EXISTS ai_prompt;
 
+
