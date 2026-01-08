@@ -45,43 +45,22 @@ Complete guide for local testing and AWS deployment of the 4-stage SQS pipeline.
 
 ## Local Testing
 
-### Quick Start
+### Understanding the Architecture
 
-**Option 1: Simple HTTP Testing (No SQS Pipeline)**
+**Important**: The JobPing pipeline is **always event-driven via SQS queues**. There is no "testing without SQS" - the pipeline IS the SQS workers.
 
-This tests the application using HTTP endpoints only (no SQS workers):
+**What the HTTP Server Does:**
+- User management endpoints (register, login, update profile)
+- Viewing results (GET /jobs, GET /notifications) - reads from database
+- **Does NOT process the pipeline** - that always goes through SQS workers
 
-```bash
-# 1. Start infrastructure
-docker-compose up -d
+**What the SQS Workers Do:**
+- Stage 1: Job analysis (company research)
+- Stage 2: User fanout (enqueue users for matching)
+- Stage 3: User analysis (AI matching)
+- Stage 4: Notifications (create notification events)
 
-# 2. Set up backend environment
-cd backend
-cp env.example .env
-# Edit .env with your settings (see below)
-
-# 3. Run database migrations
-go run ./cmd/server  # This will run migrations on startup
-
-# 4. Start backend (new terminal)
-cd backend
-air
-
-# 5. Start frontend (new terminal)
-cd frontend
-npm install
-npm run dev
-
-# 6. Test
-# Open http://localhost:5173
-# Click "Fetch Latest Jobs" (uses mock jobs)
-```
-
-**Option 2: Full 4-Stage Pipeline Testing**
-
-This tests the complete SQS pipeline with all workers:
-
-See [Testing the 4-Stage Pipeline](#testing-the-4-stage-pipeline) below.
+To test the complete system, you **must** run all 4 SQS workers locally.
 
 ---
 
@@ -113,32 +92,56 @@ NOTIFICATION_QUEUE_URL=http://localhost:4566/000000000000/jobping-notification
 
 **Frontend Environment** (optional):
 
+The frontend defaults to `http://localhost:8080` and has a Vite proxy configured, so you typically don't need a `.env` file. Only create one if your backend runs on a different URL:
+
 ```bash
 cd frontend
-echo "VITE_API_URL=http://localhost:8080" > .env
+cp .env.example .env
+# Edit .env if needed (defaults to http://localhost:8080)
 ```
 
 ---
 
 ### Testing the 4-Stage Pipeline
 
-This section shows how to test the complete event-driven pipeline locally.
+**This is the only way to test the pipeline** - all processing happens through SQS workers.
 
-#### Step 1: Start Infrastructure
+#### Step 1: Start Everything with Docker Compose
 
 ```bash
-# Start PostgreSQL and LocalStack
-docker-compose up -d
+# Start all services (PostgreSQL, LocalStack, Backend, and all 4 workers)
+docker-compose up
 
-# Verify services are running
+# Or start in detached mode (background)
+docker-compose up -d
+```
+
+This starts:
+- **PostgreSQL** - Database
+- **LocalStack** - SQS emulator (automatically creates 4 queues)
+- **Backend** - HTTP server for API endpoints (with hot reload)
+- **job_analysis_worker** - Stage 1 worker (with hot reload)
+- **user_fanout_worker** - Stage 2 worker (with hot reload)
+- **user_analysis_worker** - Stage 3 worker (with hot reload)
+- **notifier_worker** - Stage 4 worker (with hot reload)
+
+**Hot Reload**: All workers and the backend automatically rebuild and restart when you edit Go files.
+
+**Verify services are running:**
+```bash
 docker-compose ps
 ```
 
 Expected output:
 ```
-NAME                 STATUS
-jobping-db           running (healthy)
-jobping-localstack   running (healthy)
+NAME                          STATUS
+jobping-db                    running (healthy)
+jobping-localstack            running (healthy)
+jobping-backend               running
+jobping-job-analysis-worker   running
+jobping-user-fanout-worker    running
+jobping-user-analysis-worker  running
+jobping-notifier-worker       running
 ```
 
 **SQS Queues**: LocalStack automatically creates the 4 queues via `scripts/init-localstack.sh`:
@@ -152,20 +155,27 @@ Verify queues:
 docker exec jobping-localstack awslocal sqs list-queues
 ```
 
-#### Step 2: Set Up Database
-
+**View logs:**
 ```bash
-# Run migrations
-cd backend
-go run ./cmd/server
-# Migrations run automatically on startup
-# Press Ctrl+C after migrations complete
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f job_analysis_worker
+docker-compose logs -f backend
 ```
 
-Or run migrations manually:
+#### Step 2: Set Up Database (Migrations)
+
+**Migrations run automatically** when the backend service starts. You should see migration logs in the backend container output.
+
+**Verify migrations ran:**
 ```bash
-cd backend
-go run ./cmd/migrate/main.go up
+# Check backend logs for migration messages
+docker-compose logs backend | grep -i migration
+
+# Or check the database directly
+docker exec jobping-db psql -U jobscanner -d jobscanner -c "\dt"
 ```
 
 #### Step 3: Create Test Data
@@ -191,64 +201,12 @@ curl -X PUT http://localhost:8080/api/user/ai-prompt \
   -d '{"ai_prompt": "I am looking for a remote software engineering position with Go or Python. I prefer startups with good work-life balance."}'
 ```
 
-#### Step 4: Start Workers (Terminal Windows)
+**Note**: The HTTP server (backend service) is only for:
+- User registration/login (`POST /api/register`, `POST /api/login`)
+- Viewing processed jobs (`GET /api/jobs`)
+- Viewing notifications (`GET /api/notifications`)
 
-You need to run each worker in a separate terminal:
-
-**Terminal 1: Job Analysis Worker**
-```bash
-cd backend
-export DATABASE_URL=postgres://jobscanner:password@localhost:5433/jobscanner?sslmode=disable
-export USER_FANOUT_QUEUE_URL=http://localhost:4566/000000000000/jobping-user-fanout
-export OPENAI_API_KEY=sk-your-key-here  # Optional
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-go run ./cmd/workers/job_analysis
-```
-
-**Terminal 2: User Fanout Worker**
-```bash
-cd backend
-export DATABASE_URL=postgres://jobscanner:password@localhost:5433/jobscanner?sslmode=disable
-export USER_ANALYSIS_QUEUE_URL=http://localhost:4566/000000000000/jobping-user-analysis
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-go run ./cmd/workers/user_fanout
-```
-
-**Terminal 3: User Analysis Worker**
-```bash
-cd backend
-export DATABASE_URL=postgres://jobscanner:password@localhost:5433/jobscanner?sslmode=disable
-export NOTIFICATION_QUEUE_URL=http://localhost:4566/000000000000/jobping-notification
-export OPENAI_API_KEY=sk-your-key-here  # Optional
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-go run ./cmd/workers/user_analysis
-```
-
-**Terminal 4: Notifier Worker**
-```bash
-cd backend
-export DATABASE_URL=postgres://jobscanner:password@localhost:5433/jobscanner?sslmode=disable
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-go run ./cmd/workers/notifier
-```
-
-**Terminal 5: HTTP Server (Optional - for API endpoints)**
-```bash
-cd backend
-air
-```
+It does **NOT** process the pipeline - that's what the SQS workers do.
 
 #### Step 5: Test the Pipeline
 
@@ -305,10 +263,22 @@ docker exec jobping-localstack awslocal sqs send-message \
 
 **Watch the Pipeline**:
 
-1. **Stage 1** (Job Analysis): Check Terminal 1 logs - should see company research
-2. **Stage 2** (User Fanout): Check Terminal 2 logs - should see users being enqueued
-3. **Stage 3** (User Analysis): Check Terminal 3 logs - should see AI matching
-4. **Stage 4** (Notification): Check Terminal 4 logs - should see notifications created
+```bash
+# Watch all worker logs
+docker-compose logs -f job_analysis_worker user_fanout_worker user_analysis_worker notifier_worker
+
+# Or watch individual workers
+docker-compose logs -f job_analysis_worker    # Stage 1: Company research
+docker-compose logs -f user_fanout_worker     # Stage 2: User fanout
+docker-compose logs -f user_analysis_worker   # Stage 3: AI matching
+docker-compose logs -f notifier_worker        # Stage 4: Notifications
+```
+
+You should see:
+1. **Stage 1** (Job Analysis): Company research logs
+2. **Stage 2** (User Fanout): Users being enqueued logs
+3. **Stage 3** (User Analysis): AI matching logs
+4. **Stage 4** (Notification): Notification creation logs
 
 **Verify Results**:
 
@@ -327,6 +297,8 @@ psql postgres://jobscanner:password@localhost:5433/jobscanner -c "SELECT * FROM 
 
 ### Testing Individual Components
 
+You can test each stage independently by sending messages directly to its queue. All workers are running in Docker, so they'll automatically process messages:
+
 #### Test Job Analysis Only
 
 ```bash
@@ -334,6 +306,9 @@ psql postgres://jobscanner:password@localhost:5433/jobscanner -c "SELECT * FROM 
 docker exec jobping-localstack awslocal sqs send-message \
   --queue-url http://localhost:4566/000000000000/jobping-job-analysis \
   --message-body '{"job_id": "your-job-uuid"}'
+
+# Watch job_analysis_worker logs
+docker-compose logs -f job_analysis_worker
 
 # Check user-fanout queue for message
 docker exec jobping-localstack awslocal sqs receive-message \
@@ -348,6 +323,9 @@ docker exec jobping-localstack awslocal sqs send-message \
   --queue-url http://localhost:4566/000000000000/jobping-user-fanout \
   --message-body '{"job_id": "your-job-uuid"}'
 
+# Watch user_fanout_worker logs
+docker-compose logs -f user_fanout_worker
+
 # Check user-analysis queue for messages (one per user)
 docker exec jobping-localstack awslocal sqs receive-message \
   --queue-url http://localhost:4566/000000000000/jobping-user-analysis
@@ -360,6 +338,9 @@ docker exec jobping-localstack awslocal sqs receive-message \
 docker exec jobping-localstack awslocal sqs send-message \
   --queue-url http://localhost:4566/000000000000/jobping-user-analysis \
   --message-body '{"job_id": "job-uuid", "user_id": "user-uuid"}'
+
+# Watch user_analysis_worker logs
+docker-compose logs -f user_analysis_worker
 
 # Check notification queue for message (if match found)
 docker exec jobping-localstack awslocal sqs receive-message \
@@ -374,8 +355,33 @@ docker exec jobping-localstack awslocal sqs send-message \
   --queue-url http://localhost:4566/000000000000/jobping-notification \
   --message-body '{"job_id": "job-uuid", "user_id": "user-uuid"}'
 
+# Watch notifier_worker logs
+docker-compose logs -f notifier_worker
+
 # Check notifications table
-psql postgres://jobscanner:password@localhost:5433/jobscanner -c "SELECT * FROM notifications;"
+docker exec jobping-db psql -U jobscanner -d jobscanner -c "SELECT * FROM notifications;"
+```
+
+### Starting/Stopping Services
+
+```bash
+# Start all services
+docker-compose up
+
+# Start specific services only
+docker-compose up postgres localstack backend job_analysis_worker
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (deletes data)
+docker-compose down -v
+
+# Restart a specific service
+docker-compose restart job_analysis_worker
+
+# Rebuild and restart (after code changes)
+docker-compose up --build job_analysis_worker
 ```
 
 ---

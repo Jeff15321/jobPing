@@ -124,6 +124,7 @@ def handler(event: dict, context: Any) -> dict:
 
         jobs_created = 0
         jobs_queued = 0
+        all_jobs = []  # Store all fetched jobs for response
         
         try:
             cur = conn.cursor()
@@ -133,12 +134,28 @@ def handler(event: dict, context: Any) -> dict:
                 job_id = uuid.uuid4()
                 job_url = str(job_row.get("job_url", ""))
                 
+                # Collect job data for response (before checking if exists)
+                job_data = {
+                    "id": str(job_id),
+                    "title": str(job_row.get("title", "")),
+                    "company": str(job_row.get("company", "")),
+                    "location": str(job_row.get("location", "")),
+                    "job_url": job_url,
+                    "job_type": str(job_row.get("job_type", "")),
+                    "is_remote": bool(job_row.get("is_remote", False)),
+                    "min_salary": float(job_row.get("min_amount")) if job_row.get("min_amount") else None,
+                    "max_salary": float(job_row.get("max_amount")) if job_row.get("max_amount") else None,
+                    "date_posted": str(job_row.get("date_posted", "")),
+                    "status": "existing",  # Default to existing, will change if created
+                }
+                
                 # Check if job already exists
                 cur.execute("SELECT id FROM jobs WHERE job_url = %s", (job_url,))
                 existing = cur.fetchone()
                 
                 if existing:
                     logger.info(f"Job already exists: {job_url}, skipping")
+                    all_jobs.append(job_data)
                     continue
                 
                 # Insert job into database
@@ -168,6 +185,8 @@ def handler(event: dict, context: Any) -> dict:
                 ))
                 
                 jobs_created += 1
+                job_data["status"] = "created"  # Mark as newly created
+                all_jobs.append(job_data)
                 
                 # Send job_id to SQS
                 if SQS_QUEUE_URL:
@@ -196,6 +215,7 @@ def handler(event: dict, context: Any) -> dict:
             "jobs_created": jobs_created,
             "jobs_queued": jobs_queued,
             "trigger": "eventbridge" if event.get("source") == "eventbridge" else "api",
+            "jobs": all_jobs,  # Include all fetched jobs (both new and existing)
         }
 
         # Return API Gateway formatted response

@@ -14,8 +14,8 @@ func RegisterRoutes(r chi.Router, jobHandler *handler.JobHandler) {
 	// Local development endpoints only
 	// In production, these go through Python Lambda + SQS
 	if os.Getenv("ENVIRONMENT") != "production" {
-		r.Post("/jobs/fetch", jobHandler.MockFetchJobs)   // Mock fetch with fake jobs
-		r.Post("/jobs/process", jobHandler.ProcessJob)    // Process real jobs from Python
+		r.Post("/jobs/fetch", jobHandler.FetchJobs)    // Proxy to Python JobSpy service
+		r.Post("/jobs/process", jobHandler.ProcessJob) // Process real jobs from Python
+		r.Delete("/jobs", jobHandler.DeleteAllJobs)    // Delete all jobs (for testing)
 	}
 }
-

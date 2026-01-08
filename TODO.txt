@@ -1,3 +1,1 @@
-SQS + Lambda Architecture Implementation - COMPLETED
-
-See docs/ARCHITECTURE.md for full details.
+learn about air.toml, kill delay and send interrupt

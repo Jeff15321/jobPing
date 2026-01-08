@@ -159,6 +159,12 @@ class ApiService {
     const response = await this.request<JobsResponse>(`/api/jobs${limit ? `?limit=${limit}` : ''}`);
     return response.jobs || [];
   }
+
+  async deleteAllJobs(): Promise<void> {
+    await this.request<void>('/api/jobs', {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiService();

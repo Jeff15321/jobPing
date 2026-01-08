@@ -20,6 +20,7 @@ type JobRepository interface {
 	UpdateCompanyInfo(ctx context.Context, id uuid.UUID, companyInfo map[string]interface{}) error
 	ExistsByURL(ctx context.Context, url string) (bool, error)
 	IsCompanyInfoFresh(ctx context.Context, id uuid.UUID) (bool, error)
+	DeleteAll(ctx context.Context) error
 }
 
 type postgresJobRepository struct {
@@ -161,6 +162,25 @@ func (r *postgresJobRepository) IsCompanyInfoFresh(ctx context.Context, id uuid.
 		return false, nil
 	}
 	return isFresh, err
+}
+
+func (r *postgresJobRepository) DeleteAll(ctx context.Context) error {
+	// Delete in order to respect foreign key constraints
+	// Notifications depend on user_job_matches, which depend on jobs
+	// But since we have ON DELETE CASCADE, we can delete jobs directly
+	// However, let's delete notifications first to be safe, then matches, then jobs
+	queries := []string{
+		`DELETE FROM notifications`,
+		`DELETE FROM user_job_matches`,
+		`DELETE FROM jobs`,
+	}
+	
+	for _, query := range queries {
+		if _, err := r.db.Exec(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 

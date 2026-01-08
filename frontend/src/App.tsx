@@ -6,6 +6,7 @@ function App() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -42,6 +43,24 @@ function App() {
     }
   }
 
+  const handleDeleteAllJobs = async () => {
+    if (!confirm('Are you sure you want to delete all jobs? This cannot be undone.')) {
+      return
+    }
+    try {
+      setDeleting(true)
+      setError(null)
+      setMessage(null)
+      await api.deleteAllJobs()
+      setMessage('All jobs deleted successfully')
+      setJobs([])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete jobs')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const getScoreColor = (score?: number) => {
     if (!score) return 'var(--text-muted)'
     if (score >= 80) return 'var(--success)'
@@ -71,6 +90,14 @@ function App() {
             className="refresh-btn"
           >
             {loading ? 'Loading...' : '🔄 Refresh'}
+          </button>
+          <button 
+            onClick={handleDeleteAllJobs} 
+            disabled={deleting}
+            className="delete-btn"
+            style={{ backgroundColor: '#dc3545', color: 'white' }}
+          >
+            {deleting ? 'Deleting...' : '🗑️ Clear All Jobs'}
           </button>
         </div>
 

@@ -196,6 +196,11 @@ func (s *JobService) GetJobs(ctx context.Context, limit int) ([]model.Job, error
 	return s.repo.GetProcessed(ctx, limit)
 }
 
+// DeleteAllJobs removes all jobs from the database (for testing)
+func (s *JobService) DeleteAllJobs(ctx context.Context) error {
+	return s.repo.DeleteAll(ctx)
+}
+
 // JobInput represents a job from SQS message
 type JobInput struct {
 	Title       string   `json:"title"`
