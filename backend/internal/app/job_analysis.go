@@ -3,9 +3,9 @@ package app
 import (
 	"github.com/jobping/backend/internal/config"
 	"github.com/jobping/backend/internal/database"
+	jobrepo "github.com/jobping/backend/internal/features/job/repository"
 	jobanalysishandler "github.com/jobping/backend/internal/features/job_analysis/handler"
 	jobanalysissvc "github.com/jobping/backend/internal/features/job_analysis/service"
-	jobrepo "github.com/jobping/backend/internal/features/job/repository"
 )
 
 type JobAnalysisApp struct {
